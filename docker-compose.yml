@@ -8,8 +8,24 @@ services:
     container_name: product-api
     ports:
       - "8080:8080"
-    command: >
-      java -cp app.jar com.mango.App
+    # No command override: the Dockerfile's own ENTRYPOINT ("java -jar app.jar")
+    # already runs the real main class. The previous override referenced a
+    # "com.mango.App" class that never existed in this codebase.
+    environment:
+      # Under container limits the JVM defaults MaxRAMPercentage to a conservative
+      # 25%, leaving an unnecessarily small heap out of the 1G limit for an app with
+      # no other significant off-heap consumer than Jetty/Jackson. UseSerialGC avoids
+      # a concurrent collector competing with request handling for the single
+      # available core.
+      - JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=70 -XX:+UseSerialGC
+    ulimits:
+      # The benchmark opens tens of thousands of concurrent connections; the
+      # default per-container file descriptor limit can be exhausted before the
+      # server itself becomes the bottleneck. This is a ulimit, not CPU/memory, so
+      # it does not violate the challenge's resource constraints.
+      nofile:
+        soft: 65536
+        hard: 65536
     deploy:
       resources:
         limits:
@@ -27,6 +43,10 @@ services:
     depends_on:
       - app
     command: sh -c "chmod +x /app/benchmark.sh && /app/benchmark.sh"
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
     deploy:
       resources:
         limits:

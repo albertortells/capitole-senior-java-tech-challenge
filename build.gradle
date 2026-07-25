@@ -1,5 +1,7 @@
 plugins {
 	id 'java'
+	id 'application'
+	id 'com.gradleup.shadow' version '8.3.6'
 }
 
 group = 'com.mango'
@@ -11,14 +13,45 @@ java {
 	}
 }
 
+application {
+	mainClass = 'com.mango.products.ProductsApplication'
+}
+
 repositories {
 	mavenCentral()
 }
 
 dependencies {
-	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+	implementation 'io.javalin:javalin:6.7.0'
+	implementation 'com.fasterxml.jackson.core:jackson-databind:2.18.3'
+	implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.18.3'
+	implementation 'org.slf4j:slf4j-simple:2.0.17'
+
+	testImplementation 'org.junit.jupiter:junit-jupiter:5.12.2'
+	testImplementation 'org.assertj:assertj-core:3.27.3'
+	testImplementation 'org.mockito:mockito-core:5.18.0'
+	testImplementation 'org.mockito:mockito-junit-jupiter:5.18.0'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.12.2'
 }
 
 tasks.named('test') {
 	useJUnitPlatform()
+}
+
+// Gradle's default "jar" task produces a thin jar without dependencies bundled.
+// It is disabled so that build/libs/ contains exactly one artifact: the Shadow fat jar
+// below. Two jars matching build/libs/*.jar would break the Dockerfile's COPY step.
+tasks.named('jar') {
+	enabled = false
+}
+
+tasks.named('shadowJar') {
+	archiveBaseName.set('app')
+	archiveClassifier.set('')
+	archiveVersion.set('')
+	mergeServiceFiles()
+}
+
+tasks.named('build') {
+	dependsOn tasks.named('shadowJar')
 }
